@@ -1,0 +1,17 @@
+hf
+
+read config from current dir then start running
+
+
+hf config
+
+generate a default configuration file
+
+
+hf config_file_path
+
+i.e.  hf ~/.config/http-filter/config.json
+
+hf help
+
+print help menu
