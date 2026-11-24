@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 
@@ -19,7 +20,8 @@ func (pxy *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("drop invalid traffic", "addr", r.RemoteAddr)
 
 		w.WriteHeader(http.StatusBadGateway)
-		fmt.Fprint(w, "your ip addr is not allowed")
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		fmt.Fprintf(w, "your ip address is %s, not allowed to visit this website. contact the admin", ip)
 
 		return
 	}
