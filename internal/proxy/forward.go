@@ -23,7 +23,7 @@ func (pxy *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	targetURL := fmt.Sprintf("http://%s:%s", pxy.ru.DstHost, pxy.ru.DstPort)
+	targetURL := fmt.Sprintf("http://%s:%s%s", pxy.ru.DstHost, pxy.ru.DstPort, r.RequestURI)
 
 	req, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
