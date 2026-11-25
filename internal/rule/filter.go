@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -25,6 +26,9 @@ type Rule struct {
 	AcceptHosts []string `json:"accept_hosts"`
 
 	DropHosts []string `json:"drop_hosts"`
+
+	acceptMatcher []Matcher
+	dropMatcher   []Matcher
 
 	F filter.Filter
 }
@@ -60,17 +64,36 @@ func (r *Rule) buildFilter() {
 }
 
 func (r *Rule) buildAcceptFilter() {
+	r.dropMatcher = make([]Matcher, 0, len(r.DropHosts))
+	for _, h := range r.DropHosts {
+		m, err := GenMatcher(h)
+		if err != nil {
+			slog.Error("failed to generate mathcer from host, skip", "raw", h, "err", err)
+		}
+		r.dropMatcher = append(r.dropMatcher, m)
+	}
 	r.F = func(req *http.Request) bool {
 		host, _, _ := strings.Cut(req.RemoteAddr, ":")
-
-		return !slices.Contains(r.DropHosts, host)
+		return !slices.ContainsFunc(r.dropMatcher, func(m Matcher) bool {
+			return m.MatchStr(host)
+		})
 	}
 }
 
 func (r *Rule) buildDropFilter() {
+	r.acceptMatcher = make([]Matcher, 0, len(r.AcceptHosts))
+	for _, h := range r.AcceptHosts {
+		m, err := GenMatcher(h)
+		if err != nil {
+			slog.Error("failed to generate mathcer from host, skip", "raw", h, "err", err)
+		}
+		r.acceptMatcher = append(r.acceptMatcher, m)
+	}
 	r.F = func(req *http.Request) bool {
 		host, _, _ := strings.Cut(req.RemoteAddr, ":")
-		return slices.Contains(r.AcceptHosts, host)
+		return slices.ContainsFunc(r.acceptMatcher, func(m Matcher) bool {
+			return m.MatchStr(host)
+		})
 	}
 }
 

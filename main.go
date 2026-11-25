@@ -31,7 +31,8 @@ func printHelp() {
 func generateConf() {
 	err := os.WriteFile("config.json", configByte, 0o644)
 	if err != nil {
-		log.Fatalf("error while creating config file", "err", err)
+		slog.Error("error while creating config file", "err", err)
+		os.Exit(1)
 	}
 	fmt.Printf("generate default configuration file on path -> %s", "config.json")
 }
@@ -52,7 +53,8 @@ func main() {
 	}
 	f, err := os.OpenFile(configPath, os.O_RDONLY, 0o644)
 	if err != nil {
-		log.Fatalf("error while opening configuration file", "err", err, "path", configPath)
+		slog.Error("error while opening configuration file", "err", err, "path", configPath)
+		os.Exit(1)
 	}
 
 	defer f.Close()
