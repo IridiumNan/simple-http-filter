@@ -76,6 +76,7 @@ func startConfServer(ru *rule.Rule, controlCh chan<- rule.Sig, shutCh <-chan rul
 	confServe.Addr = ru.ConfigServeAddr
 
 	slog.Info("starting reload serve", "addr", ru.ConfigServeAddr)
+	fmt.Printf("for getting management API, send a GET request to endpoint: http://%s/api/text or http://%s/api/html", ru.ConfigServeAddr, ru.ConfigServeAddr)
 	go func() {
 		err := confServe.ListenAndServe()
 		if err != nil {
