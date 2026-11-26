@@ -14,4 +14,10 @@ i.e.  hf ~/.config/http-filter/config.json
 
 hf help
 
-print help menu
+print help manual
+
+
+
+For all available API management endpoint, send request to http://config_serve_addr/api/text or http://config_serve_addr/api/html
+
+Where the config_serve_addr load from config.json

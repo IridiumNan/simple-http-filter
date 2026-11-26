@@ -108,10 +108,6 @@ func main() {
 		}
 	}
 
-	// TODO: Write an endpoint for graceful reload
-	// /reload
-	// read configuration from file
-
 	for {
 		controlCh := make(chan rule.Sig)
 		shutCh := make(chan rule.Sig)
@@ -122,11 +118,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		defer f.Close()
 		ru, err := rule.NewRule(f)
 		if err != nil {
 			log.Fatalf("error while reading rule config: %s", err)
 		}
+
+		f.Close()
 		startProxy(ru, shutCh)
 		startConfServer(ru, controlCh, shutCh)
 

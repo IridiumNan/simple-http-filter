@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -36,6 +37,44 @@ type Rule struct {
 	F filter.Filter
 
 	mu sync.RWMutex
+}
+
+func (r *Rule) Byte() []byte {
+	type RuleConf struct {
+		ConfigServeAddr string `json:"config_serve_addr"`
+
+		ServeHost string `json:"serve_host"`
+		ServePort string `json:"serve_port"`
+
+		DstHost string `json:"dst_host"`
+		DstPort string `json:"dst_port"`
+
+		// Can be accept or drop
+		DefaultPolicy string `json:"default_policy"`
+
+		AcceptHosts []string `json:"accept_hosts"`
+
+		DropHosts []string `json:"drop_hosts"`
+	}
+
+	rc := RuleConf{
+		ConfigServeAddr: r.ConfigServeAddr,
+		ServeHost:       r.ServeHost,
+		ServePort:       r.ServePort,
+		DstHost:         r.DstHost,
+		DstPort:         r.DstPort,
+		DefaultPolicy:   r.DefaultPolicy,
+		AcceptHosts:     r.AcceptHosts,
+		DropHosts:       r.DropHosts,
+	}
+
+	data, err := json.Marshal(rc)
+	if err != nil {
+		slog.Error("error while marshal current rule into byte data", "err", err)
+		return nil
+	}
+
+	return data
 }
 
 func (r *Rule) Str() string {
@@ -146,6 +185,27 @@ func (r *Rule) SafeFilter(req *http.Request) bool {
 	defer r.mu.RUnlock()
 
 	return r.F(req)
+}
+
+// DefaultRule read the configuration from ./config.json
+func DefaultRule() (*Rule, error) {
+	byteData, err := os.ReadFile("config.json")
+	if err != nil {
+		return nil, fmt.Errorf("while reading config file, path: config.json, err: %s", err)
+	}
+
+	var r Rule
+
+	err = json.Unmarshal(byteData, &r)
+	if err != nil {
+		log.Fatal("error while marshal config, fix code", err)
+	}
+
+	r.mu = sync.RWMutex{}
+
+	r.buildFilter()
+
+	return &r, nil
 }
 
 func NewRule(conf io.Reader) (*Rule, error) {
