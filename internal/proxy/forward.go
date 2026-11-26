@@ -16,7 +16,7 @@ type Proxy struct {
 }
 
 func (pxy *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !pxy.ru.F(r) {
+	if !pxy.ru.SafeFilter(r) {
 		slog.Warn("drop invalid traffic", "addr", r.RemoteAddr)
 
 		w.WriteHeader(http.StatusBadGateway)
@@ -27,6 +27,7 @@ func (pxy *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	targetURL := fmt.Sprintf("http://%s:%s%s", pxy.ru.DstHost, pxy.ru.DstPort, r.RequestURI)
 
+	slog.Debug("new forward request", "ip", r.RemoteAddr)
 	req, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
 		slog.Error("while creating new request", "err", err)

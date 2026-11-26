@@ -9,11 +9,14 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 
 	"simple-http/filter/internal/filter"
 )
 
 type Rule struct {
+	ConfigServeAddr string `json:"config_serve_addr"`
+
 	ServeHost string `json:"serve_host"`
 	ServePort string `json:"serve_port"`
 
@@ -31,6 +34,8 @@ type Rule struct {
 	dropMatcher   []Matcher
 
 	F filter.Filter
+
+	mu sync.RWMutex
 }
 
 func (r *Rule) Str() string {
@@ -53,6 +58,7 @@ func (r *Rule) Str() string {
 }
 
 func (r *Rule) buildFilter() {
+	r.mu.Lock()
 	switch strings.ToLower(r.DefaultPolicy) {
 	case "accept":
 		r.buildAcceptFilter()
@@ -61,6 +67,7 @@ func (r *Rule) buildFilter() {
 	default:
 		log.Fatalf("invalid policy!!!, policy must be accept or drop, got: %s", r.DefaultPolicy)
 	}
+	r.mu.Unlock()
 }
 
 func (r *Rule) buildAcceptFilter() {
@@ -73,6 +80,8 @@ func (r *Rule) buildAcceptFilter() {
 		r.dropMatcher = append(r.dropMatcher, m)
 	}
 	r.F = func(req *http.Request) bool {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
 		host, _, _ := strings.Cut(req.RemoteAddr, ":")
 		return !slices.ContainsFunc(r.dropMatcher, func(m Matcher) bool {
 			return m.MatchStr(host)
@@ -97,6 +106,48 @@ func (r *Rule) buildDropFilter() {
 	}
 }
 
+func (r *Rule) AddAccept(s string) error {
+	m, err := GenMatcher(s)
+	if err != nil {
+		return fmt.Errorf("error while generating new matcher: %s, raw_ip: %s", err, s)
+	}
+
+	r.mu.Lock()
+	r.acceptMatcher = append(r.acceptMatcher, m)
+	r.AcceptHosts = append(r.AcceptHosts, s)
+	r.mu.Unlock()
+
+	slog.Info("add new accept matcher", "ip", s)
+
+	return nil
+}
+
+func (r *Rule) AddDrop(s string) error {
+	m, err := GenMatcher(s)
+	if err != nil {
+		return fmt.Errorf("error while generating new matcher: %s, raw_ip: %s", err, s)
+	}
+
+	r.mu.Lock()
+	r.dropMatcher = append(r.dropMatcher, m)
+	r.DropHosts = append(r.DropHosts, s)
+	r.mu.Unlock()
+
+	slog.Info("add new drop matcher", "ip", s)
+
+	return nil
+}
+
+// SafeFilter support mutex for hot reload
+// you should always use this instead of raw [Rule.F]
+func (r *Rule) SafeFilter(req *http.Request) bool {
+	r.mu.RLock()
+
+	defer r.mu.RUnlock()
+
+	return r.F(req)
+}
+
 func NewRule(conf io.Reader) (*Rule, error) {
 	byteData, err := io.ReadAll(conf)
 	if err != nil {
@@ -109,6 +160,8 @@ func NewRule(conf io.Reader) (*Rule, error) {
 	if err != nil {
 		log.Fatal("error while marshal config, fix code", err)
 	}
+
+	r.mu = sync.RWMutex{}
 
 	r.buildFilter()
 

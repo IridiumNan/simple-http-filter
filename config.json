@@ -1,12 +1,12 @@
 {
+    "config_serve_addr": "127.0.0.1:10000",
     "serve_host": "127.0.0.1",
     "serve_port": "8080",
     "dst_host": "127.0.0.1",
     "dst_port": "8081",
     "default_policy": "drop",
     "accept_hosts": [
-        "127.0.0.1",
-        "localhost"
+        "127.0.0.1"
     ],
     "drop_hosts": []
 }
